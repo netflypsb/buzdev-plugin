@@ -1,0 +1,14 @@
+name = "buzdev-outreach"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# MCP endpoint: https://buzdev-outreach.<account>.workers.dev/mcp
+# Health check: https://buzdev-outreach.<account>.workers.dev/
+
+# Optional: set BUZDEV_API_KEY as a secret to require auth:
+#   wrangler secret put BUZDEV_API_KEY
+# If not set, all tools are open (no auth required).
+
+# No other secrets needed — the server is a stateless proxy.
+# FreeSerp.ai (keyless) + DuckDuckGo HTML (keyless) + Jina Reader (keyless tier)

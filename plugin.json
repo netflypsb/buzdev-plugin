@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "buzdev-plugin",
+  "version": "1.0.0",
+  "description": "BuzDev — AI-powered customer outreach and lead generation. Provides web & social search, lead discovery, email finding, and CSV export. No external auth required for core functionality.",
+  "author": {
+    "name": "BuzDev",
+    "url": "https://buzdev.app"
+  },
+  "homepage": "https://buzdev.app",
+  "repository": "https://github.com/netflypsb/buzdev-plugin",
+  "license": "MIT",
+  "keywords": ["buzdev", "mcp", "outreach", "leads", "social-search", "lead-generation", "ai-agents"]
+}
