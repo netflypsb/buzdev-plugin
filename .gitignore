@@ -3,4 +3,4 @@ node_modules/
 .vercel/
 .env.local
 *.log
-.DS_Store
+.DS_Storepackage-lock.json

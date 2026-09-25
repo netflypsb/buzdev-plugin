@@ -9,7 +9,9 @@
     "test": "echo 'No tests yet'"
   },
   "dependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "agents": "^0.20.0",
     "zod": "^3.25.0 || ^4.0.0"
   },
