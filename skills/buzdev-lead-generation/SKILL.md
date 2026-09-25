@@ -398,27 +398,48 @@ This skill is designed to run on a Hermes Cloud instance as the backend for the 
 5. Agent continues to Phase 3 (search), polls again for batch results
 6. User gates at each phase: continue/stop after search, confirm after refine, download CSV
 
-**Session state:**
-- The Hermes agent maintains session state internally (memory + files)
-- No external database needed for test stage — the agent writes leads to `/tmp/buzdev_session_<id>.json`
-- For production: agent writes to Supabase (future)
+## Architecture: Hermes Cloud + Vercel + Supabase
 
-## BuzDev Plugin Architecture (No Agentora Components)
+The BuzDev SaaS has three layers:
+
+- **Vercel frontend** (thin): auth (email magic link), wizard, editable profile gate, dashboard, CSV download
+- **Hermes Cloud agent** (heavy): runs the full lead generation pipeline autonomously using the BuzDev plugin
+- **Supabase** (state): user accounts, jobs table with status flow (`analyzing → gated → queued → running → completed → failed`), CSV storage, email notifications
+
+### Workflow: Option B (Single Gate)
+
+1. User authenticates via email magic link (Supabase)
+2. User submits business URL + description → Vercel creates job (status: `analyzing`) → submits to Hermes Cloud `POST /v1/runs`
+3. Hermes agent fetches website, analyzes business, generates 3-5 customer profiles → returns to Vercel → stored in Supabase → displayed to user
+4. **GATE**: User reviews/edits/adds/deletes profiles in the frontend → clicks "Start Search" → Vercel updates job (status: `queued`, profiles finalized) → submits to Hermes Cloud
+5. Hermes agent runs full pipeline autonomously (no timeout): registry-first search → web search → email discovery → social search → scoring → CSV export
+6. Agent completes → Vercel polls `GET /v1/runs/{run_id}` → stores CSV in Supabase Storage → Supabase trigger sends email notification
+7. User returns (hours/days later) → dashboard shows completed job → downloads CSV
+
+**Key design decisions:**
+- Single gate (not 3) — the B2B/B2C + profile decision is the highest-leverage checkpoint; after that, the agent runs autonomously
+- Job persists in Supabase — user can close browser and come back later
+- Email notification on completion — user doesn't need to poll manually
+- Queue management — Hermes Cloud has `max_concurrent_runs=10`; Supabase queue handles overflow with position display
+- Free tier: 1 concurrent job per user (rate limiting)
+
+## BuzDev Plugin (No Agentora Components)
 
 The BuzDev plugin is a standalone Hermes Agent plugin, separate from the Agentora ecosystem. It contains only lead-generation components — no marketplace, credits, or publishing.
 
 **MCP servers (2):**
-1. **buzdev-outreach** — fork of the customer-outreach MCP with the Agentora credit gate and API key validation stripped out. All 8 tools (`fetch_website`, `search_web`, `research_company`, `search_for_leads`, `discover_email`, `search_social`, `export_leads`, `discover_extensions`) remain, all free, no credit deduction. Deployed as a Cloudflare Worker.
+1. **buzdev-outreach** — fork of customer-outreach MCP with Agentora credit gate and API key validation stripped out. All 8 tools (`buzdev_fetch_website`, `buzdev_search_web`, `buzdev_research_company`, `buzdev_search_for_leads`, `buzdev_discover_email`, `buzdev_search_social`, `buzdev_export_leads`, `buzdev_discover_extensions`) are free, no credit deduction. Deployed as a Cloudflare Worker.
 2. **web-social-search** — stdio Python MCP (zero Agentora deps). 10 keyless tools: `read_webpage`, `search_web`, `search_hackernews`, `search_youtube`, `get_youtube_transcript`, `search_reddit`, `read_github`, `search_github`, `read_rss`, `agent_reach_status`. Deployed as a local subprocess on the Hermes Cloud instance.
 
 **Hermes Cloud supports BOTH MCP transports:** stdio (`command` + `args`, launched as subprocess) and HTTP/StreamableHTTP (`url` + `headers`). For stdio servers, Hermes does NOT pass the full shell environment — API keys must be explicitly listed in the `env:` config key per server.
 
-**Skills (5) bundled in the plugin:**
+**Skills (6) bundled in the plugin:**
 1. `buzdev-lead-generation` — this skill (main workflow)
-2. `b2b-lead-harvesting` — registry-first methodology, `build_leads_csv.py`
-3. `lead-generation` — prospect sourcing, registry-mining reference, SerpApi local search reference
-4. `web-social-search` — social search tool documentation
-5. `agent-reach-internet` — Agent-Reach installation + 14-platform routing
+2. `buzdev-outreach` — MCP tool documentation and workflow patterns
+3. `b2b-lead-harvesting` — registry-first methodology, `build_leads_csv.py`
+4. `lead-generation` — prospect sourcing, registry-mining reference, SerpApi local search reference
+5. `web-social-search` — social search tool documentation
+6. `agent-reach-internet` — Agent-Reach installation + 14-platform routing
 
 **Agent-Reach** (github.com/Panniantong/Agent-Reach) is a separate open-source project, NOT part of Agentora. It routes to the best available backend per platform (Twitter, IG, FB, Xiaohongshu, Bilibili). The `agent_reach_status` tool in web-social-search checks if it is installed.
 
