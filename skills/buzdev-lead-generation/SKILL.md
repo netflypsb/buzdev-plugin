@@ -360,7 +360,7 @@ The agent should NOT blindly run all searches in sequence. It should PLAN based 
 
 - For Hermes Cloud runs: the agent maintains state via memory and files in `/tmp/buzdev_*`. Write intermediate lead lists to JSON after each batch so they survive context compression.
 - For Vercel-only runs: use an in-memory `Map` keyed by `session_id` cookie, with TTL cleanup. Each phase POSTs the full state back to the frontend.
-- When using `execute_code` to run Python that needs env vars: `source .env.local && export` does NOT persist into Python subprocess spawned by `execute_code`. Read the `.env.local` file directly in Python and parse the key-value pairs, or use `subprocess.run(['bash', '-c', 'source .env.local && real_command'])` for shell commands.
+- When using `execute_code` to run Python that needs env vars: environment variables are available via `os.environ.get()` in the Hermes Cloud instance. All API keys are set in the instance's `~/.hermes/.env` and loaded into the execution context automatically.
 
 ## Common Pitfalls
 
@@ -372,7 +372,7 @@ The agent should NOT blindly run all searches in sequence. It should PLAN based 
 - **UTF-8 encoding.** CSVs without BOM garble in Excel. Always use `utf-8-sig` encoding.
 - **Client in their own lead list.** The #1 embarrassment. Filter by name before export and grep the final CSV.
 - **Jina Reader API key failure.** If `Authorization: Bearer` returns 401, immediately fall back to keyless mode: `curl -s https://r.jina.ai/<url>` (20 RPM free, no auth header). Do not retry with the same key.
-- **Environment variables in execute_code.** `source .env.local && export` does NOT persist into Python subprocess spawned by `execute_code`. Read the `.env.local` file directly in Python and parse the key-value pairs, or use `subprocess.run(['bash', '-c', 'source .env.local && real_command'])` for shell commands.
+- **Environment variables in execute_code.** Use `os.environ.get("KEY", "")` to access API keys. The Hermes Cloud instance loads keys from its `~/.hermes/.env` into the execution context automatically.
 - **Registry pagination.** Many registries paginate (e.g., `?page=2`, `?page=3`). The agent must discover and harvest ALL pages, not just the first. Look for pagination links or a total count indicator.
 - **SocialAPIs FB pages are private for Malaysian institutions.** Facebook pages of Malaysian schools (SMK, SMKA, madrasah) are typically set to private. SocialAPIs returns `PRIVATE_PAGE` error. Do not waste SocialAPIs credits on Malaysian school FB pages — the registry emails/phones are already sufficient contact info.
 - **SerpApi timeout.** Each query takes ~25s (Google scraping). Use 30s timeout. Don't run more than 5 in a single batch.

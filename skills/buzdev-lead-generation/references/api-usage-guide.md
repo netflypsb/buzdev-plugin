@@ -6,11 +6,18 @@ Detailed usage patterns for each API provider in the BuzDev workflow.
 
 **Endpoint:** `https://serpapi.com/search.json`
 **Auth:** `api_key` query parameter
-**Env var:** `SERP_API_KEY`
+**Env var:** `SERP_API_KEY` (loaded via Hermes Cloud instance environment)
 
 ### Search with location targeting
-```bash
-curl -s "https://serpapi.com/search.json?engine=google&q=sekolah+menengah+Perlis&location=Perlis,+Malaysia&gl=my&hl=en&num=10&api_key=$SERP_API_KEY" --max-time 30
+Use the buzdev_search_web MCP tool, or call SerpApi from Python:
+```python
+import urllib.request, json, os
+
+api_key = os.environ.get("SERP_API_KEY", "")
+url = f"https://serpapi.com/search.json?engine=google&q=sekolah+menengah+Perlis&location=Perlis,+Malaysia&gl=my&hl=en&num=10&api_key={api_key}"
+req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+response = urllib.request.urlopen(req, timeout=30)
+data = json.loads(response.read())
 ```
 
 ### Query patterns by use case
@@ -44,22 +51,25 @@ curl -s "https://serpapi.com/search.json?engine=google&q=sekolah+menengah+Perlis
 ## Jina AI — Reader API
 
 **Endpoint:** `https://r.jina.ai/<url>`
-**Auth:** `Authorization: Bearer <key>` + `X-Return-Format: markdown`
-**Env var:** `JINA_API_KEY`
+**Auth:** `Authorization: Bearer <key>` header + `X-Return-Format: markdown`
+**Env var:** `JINA_API_KEY` (loaded via Hermes Cloud instance environment)
 
-### Fetch a page as markdown (with API key)
-```bash
-curl -s "https://r.jina.ai/https://example.com" \
-  -H "Authorization: Bearer $JINA_API_KEY" \
-  -H "X-Return-Format: markdown" \
-  --max-time 15
+### Fetch a page as markdown
+Use the buzdev_fetch_website MCP tool, or call from Python:
+```python
+import urllib.request, os
+
+api_key = os.environ.get("JINA_API_KEY", "")
+headers = {"Accept": "text/markdown"}
+if api_key:
+    headers["Authorization"] = f"Bearer {api_key}"
+req = urllib.request.Request(f"https://r.jina.ai/https://example.com", headers=headers)
+response = urllib.request.urlopen(req, timeout=15)
+markdown = response.read().decode("utf-8")
 ```
 
 ### Keyless fallback (when API key fails)
-When `Authorization: Bearer` returns 401, immediately fall back to keyless mode:
-```bash
-curl -s "https://r.jina.ai/https://example.com" --max-time 15
-```
+When `Authorization` returns 401, immediately fall back to keyless mode (no auth header).
 - No auth header needed
 - 20 RPM free rate limit
 - Use for simple, public pages only
@@ -88,26 +98,23 @@ Fetch /about and /contact pages when homepage lacks email.
 
 **Endpoint:** `https://socialcrawl.dev/v1/`
 **Auth:** `x-api-key` header
-**Env var:** `SOCIALCRAWL_API_KEY`
+**Env var:** `SOCIALCRAWL_API_KEY` (loaded via Hermes Cloud instance environment)
 
 ### Check balance (free)
-```bash
-curl -sL "https://socialcrawl.dev/v1/credits/balance" \
-  -H "x-api-key: $SOCIALCRAWL_API_KEY"
+```python
+import urllib.request, os
+api_key = os.environ.get("SOCIALCRAWL_API_KEY", "")
+req = urllib.request.Request("https://socialcrawl.dev/v1/credits/balance",
+    headers={"x-api-key": api_key})
+response = urllib.request.urlopen(req, timeout=15)
 ```
 
 ### Search across all platforms
-```bash
-curl -sL "https://socialcrawl.dev/v1/search/everywhere?query=digital+marketing+Malaysia&limit=20" \
-  -H "x-api-key: $SOCIALCRAWL_API_KEY" \
-  --max-time 20
-```
-
-### Prism leads (ranked people seeking alternatives — 50 credits)
-```bash
-curl -sL "https://socialcrawl.dev/v1/prism/leads?company=<competitor_domain>" \
-  -H "x-api-key: $SOCIALCRAWL_API_KEY" \
-  --max-time 30
+```python
+req = urllib.request.Request(
+    "https://socialcrawl.dev/v1/search/everywhere?query=digital+marketing+Malaysia&limit=20",
+    headers={"x-api-key": api_key})
+response = urllib.request.urlopen(req, timeout=20)
 ```
 
 ### Credit budget
@@ -118,7 +125,7 @@ curl -sL "https://socialcrawl.dev/v1/prism/leads?company=<competitor_domain>" \
 - With 100 free credits, use SocialCrawl strategically — max 1-2 searches per run
 
 ### Key rules
-- Use `-L` flag in curl (follows redirects) or `redirect: "follow"` in fetch
+- Use `redirect: "follow"` in fetch (socialcrawl.dev redirects)
 - For B2B: search for company names or industry + location
 - For B2C: search for community groups, student forums, parent communities
 - Filter results: keep pages/groups/accounts representing institutions, not individual posts
@@ -127,20 +134,24 @@ curl -sL "https://socialcrawl.dev/v1/prism/leads?company=<competitor_domain>" \
 
 **Endpoint:** `https://api.socialapis.io`
 **Auth:** `x-api-token` header
-**Env var:** `SOCIALAPIS_API_KEY`
+**Env var:** `SOCIALAPIS_API_KEY` (loaded via Hermes Cloud instance environment)
 
 ### Facebook page details
-```bash
-curl -s "https://api.socialapis.io/facebook/pages/details?link=https://facebook.com/somepage" \
-  -H "x-api-token: $SOCIALAPIS_API_KEY" \
-  --max-time 15
+```python
+import urllib.request, os
+api_key = os.environ.get("SOCIALAPIS_API_KEY", "")
+req = urllib.request.Request(
+    "https://api.socialapis.io/facebook/pages/details?link=https://facebook.com/somepage",
+    headers={"x-api-token": api_key})
+response = urllib.request.urlopen(req, timeout=15)
 ```
 
 ### Instagram profile details
-```bash
-curl -s "https://api.socialapis.io/instagram/profile/details?link=https://instagram.com/someprofile" \
-  -H "x-api-token: $SOCIALAPIS_API_KEY" \
-  --max-time 15
+```python
+req = urllib.request.Request(
+    "https://api.socialapis.io/instagram/profile/details?link=https://instagram.com/someprofile",
+    headers={"x-api-token": api_key})
+response = urllib.request.urlopen(req, timeout=15)
 ```
 
 ### Response fields
@@ -153,34 +164,14 @@ curl -s "https://api.socialapis.io/instagram/profile/details?link=https://instag
 - FB response may be an array at root; take first element
 - This is the best source for small businesses with social media but poor websites
 
-## Environment Variable Loading Patterns
+## Environment Variable Access
 
-### In Hermes `execute_code` (Python)
-`source .env.local && export` does **NOT** persist into Python subprocess spawned by `execute_code`. Use one of these patterns:
+All API keys are loaded from the Hermes Cloud instance environment via `os.environ.get()`. Never read secrets files directly. The Hermes Cloud instance has keys set in its `~/.hermes/.env` file, which are available as environment variables in the agent's execution context.
 
-**Pattern A: Read file directly in Python**
 ```python
-import re
-env = {}
-with open('.env.local') as f:
-    for line in f:
-        if line.strip() and not line.startswith('#'):
-            key, val = line.strip().split('=', 1)
-            env[key] = val.strip('"').strip("'")
+import os
+api_key = os.environ.get("SERP_API_KEY", "")  # loaded from Hermes Cloud env
 ```
-
-**Pattern B: Use subprocess with shell**
-```python
-import subprocess
-result = subprocess.run(
-    ['bash', '-c', 'source .env.local && echo $SERP_API_KEY'],
-    capture_output=True, text=True, shell=False
-)
-api_key = result.stdout.strip()
-```
-
-### In Node.js (Vercel serverless)
-Vercel automatically loads `.env.local` for `next dev`. For production, use Vercel Environment Variables dashboard.
 
 ## Hermes Built-in Tools (when available via Tool Gateway)
 
@@ -217,30 +208,38 @@ If the Hermes Cloud instance has Nous Portal Tool Gateway enabled:
 - Pages are paginated: `?page=2`, `?page=3`, etc.
 - Each school has a detail page: `https://myschool.daa-taa.com/school/<id>`
 - Detail page contains: school name, address, phone, email (MOE format: `reaXXXX@moe.edu.my`)
-- **Always harvest ALL pages.** Look for pagination links or a total count indicator (e.g., "30 sekolah ditemui — Halaman 1 daripada 3").
+- **Always harvest ALL pages.** Look for pagination links or a total count indicator.
 - MOE emails (`reaXXXX@moe.edu.my`) are verified real institutions, not SEO spam.
 - Score Islamic schools (SMKA) higher for Islamic college clients even without contact info.
 
 ### Registry harvesting workflow
 ```python
+import urllib.request, re, concurrent.futures
+
 # 1. Fetch list page
 list_url = "https://myschool.daa-taa.com/region/jpn-perlis_77/Menengah"
-response = fetch(list_url)
+req = urllib.request.Request(list_url, headers={"User-Agent": "Mozilla/5.0"})
+response = urllib.request.urlopen(req, timeout=25)
+html = response.read().decode("utf-8")
 
 # 2. Extract detail URLs
-detail_urls = re.findall(r'href="(/school/\d+)"', response.text)
+detail_urls = re.findall(r'href="(/school/\d+)"', html)
 
 # 3. Fetch all detail pages (concurrent, max 16)
-with ThreadPoolExecutor(max_workers=16) as ex:
-    results = ex.map(fetch_detail, detail_urls)
+def fetch_detail(path):
+    url = f"https://myschool.daa-taa.com{path}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    return urllib.request.urlopen(req, timeout=25).read().decode("utf-8")
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=16) as ex:
+    results = list(ex.map(fetch_detail, detail_urls))
 
 # 4. Parse each detail page
 for result in results:
-    name = extract_name(result)
-    email = extract_email(result)  # reaXXXX@moe.edu.my pattern
-    phone = extract_phone(result)
-    address = extract_address(result)
-    add_to_leads(name, email, phone, address, source="registry")
+    name = re.search(r'<title>(.*?)</title>', result).group(1)
+    email = re.search(r'rea\d+@moe\.edu\.my', result)
+    phone = re.search(r'04[-\s]?\d{7,8}', result)
+    # add_to_leads(name, email, phone, source="registry")
 ```
 
 ### Education: SIMPENI (JAKIM Islamic Education Registry)
@@ -249,7 +248,7 @@ for result in results:
 - **Detail page fields:** JAKIM code, school name, address, postcode, state, district, principal name, phone, email, school type (tahfiz/madrasah/SRA/SMKA), boarding facility, gender, registration status
 - **Yield:** 42 institutions in Perlis alone, 314 in Kedah — 166 total with 159 emails and 167 phones in a single harvest
 - **This is 9x more productive than SerpApi+SocialCrawl combined** for Malaysian Islamic education leads
-- **Parsing:** Detail pages use HTML tables with repeating labels across sections (search form, legend, curriculum). Use row-wise `<tr>` parsing with first-match-wins, or label-to-label segmentation anchored on `Label :` (colon-space). See b2b-lead-harvesting skill step 5 for the parsing pattern.
+- **Parsing:** Detail pages use HTML tables with repeating labels across sections. Use row-wise `<tr>` parsing with first-match-wins, or label-to-label segmentation anchored on `Label :` (colon-space). See b2b-lead-harvesting skill step 5 for the parsing pattern.
 - **eduagama.my** is a third-party aggregator of SIMPENI data — useful for discovering what exists, but always harvest from the official SIMPENI source for contact details.
 
 ### Registry discovery
