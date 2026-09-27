@@ -5,6 +5,10 @@
       "type": "streamable-http",
       "url": "https://buzdev-outreach.netflypsb.workers.dev/mcp"
     },
+    "buzdev-data": {
+      "type": "streamable-http",
+      "url": "https://buzdev-data-mcp.netflypsb.workers.dev/mcp"
+    },
     "web-social-search": {
       "type": "stdio",
       "command": "python3",
