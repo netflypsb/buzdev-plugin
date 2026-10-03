@@ -14,8 +14,11 @@ Base URL: https://buzdev.vercel.app — all requests need header `X-Webhook-Secr
 1. `GET /api/poll-pending` → `{pending: true, job: {id, prompt, input}}` or `{pending: false}`
 2. `POST /api/poll-pending` with `{"job_id": "..."}` → `claimed: true` means we own it; `claimed: false` means skip (someone else took it)
 3. Process: build ICPs from business description, search web/socials for organizations + decision makers; send a heartbeat every ~60s during this step (buzdev_heartbeat.sh <job_id>)
-4. `POST /api/webhook` with `{job_id, status: "completed", output}` — output must contain a ```json block with keys: business_summary, profiles, quality_gate, leads[]
+4. `POST /api/webhook` with `{job_id, status: "completed", output}` — `output` must be a STRING containing a ```json block with keys: business_summary, profiles, quality_gate, leads[], business_intelligence. NEVER send output as a bare JSON object: the server's parseStructuredOutput() expects text — an object crashes the route AFTER it has already flipped the job to completed, so the job completes with zero leads ingested and the idempotency guard then blocks every retry. Send `business_intelligence` as `{"sections": [...]}` (the webhook accepts both that and a bare array).
 5. On failure: `POST /api/webhook` `{job_id, status: "failed", error}`
+6. VERIFY INGESTION after every webhook (do not trust a 200): a retry response `{ok:true, message:"Job already completed"}` means the first attempt failed mid-way — the job can be completed-but-empty. If leads/BI are missing, re-POST the webhook with `status: "reingest"` (bypasses idempotency and re-ingests a completed job), then confirm rows exist via the dashboard or Supabase.
+7. Supabase verification: keys in /opt/data/.buzdev/supabase.env may be redacted/truncated — if REST calls 400, fall back to app endpoints (GET /api/poll-pending for queue state; /api/bi/<job_id> is user-auth only) or have the user check the dashboard.
+8. Disk guard: /opt/data is a small persistent volume — before `npm install`/build in a cloned repo, free space first (`npm cache clean --force`, delete scratch node_modules and old /opt/data/cache/web page dumps); a 100% disk kills installs with ENOSPC mid-run.
 
 ## Lead schema (each entry)
 name, email, phone, address, website, source (URL found at), profile (matched ICP), fit_score (1-10), notes, contact_person, person_role, social_platform, social_handle, person_email, person_phone — nulls allowed.
@@ -23,7 +26,7 @@ name, email, phone, address, website, source (URL found at), profile (matched IC
 ## Research Tools (use for lead discovery)
 Tavily API key: /opt/data/.buzdev/tavily.env (TAVILY_API_KEY). REST: POST https://api.tavily.com/search, header `Authorization: Bearer $KEY`, body {query, include_domains?, max_results, search_depth:'advanced'}.
 - General web: no include_domains.
-- Social research — pass include_domains: linkedin.com (professional/decision-makers), facebook.com+instagram.com (SME local businesses), reddit.com (honest opinions), x.com, tiktok.com (trends).
+- Social research — pass include_domains: facebook.com+instagram.com (SME local businesses), reddit.com (honest opinions), x.com, tiktok.com (trends). Tavily rejects include_domains:[linkedin.com] with HTTP 422 — find decision makers via general queries mentioning site:linkedin.com instead.
 - Use 2-4 targeted searches per job: general org search + social platform searches for decision-makers. Tavily results complement (not replace) the keyless FreeSerp/DuckDuckGo searches; use whichever returns richer data, combine sources.
 
 ## Reverse layer (free social/ads research — use BEFORE paid tools, see skill `reverse-research`)
@@ -49,10 +52,18 @@ After the webhook, read back the job's computed lead count + contact coverage (l
 ## Rules
 - Claim before processing (atomic; prevents double work)
 - Send heartbeats every ~60s during processing (see above)
-- Webhook is idempotent and safe to retry
+- Webhook is idempotent for normal completion; `status: "reingest"` explicitly re-processes a completed job
 - Polling is the reliable path; webhook notification is fire-and-forget
-- Polling cadence: every 60s via cronjob
 - Unresolvable errors → mark job failed with a clear error message (shown on user's dashboard)
 
 ## Pipeline
-Business description → ICPs (profiles) → web/social search for orgs & decision makers → fit_score each lead → JSON block → webhook.
+Business description → ICPs (profiles) → web/social search for orgs & decision makers → fit_score each lead → JSON block → webhook → verify ingestion.
+
+## High-yield harvesting pattern (proven ≥250 leads @ 65% coverage)
+Generic Tavily queries return list-vendor pages, not leads. Harvest REAL directory pages directly with web_extract and parse them:
+- RevenueBase public company lists (revenuebase.ai/companies/<type>/<country>) — 25 orgs per country page with HQ + domain; multiple country pages multiply yield.
+- mspcompanies.us / similar niche directories — entries carry LinkedIn/X/Facebook links (contact pages).
+- Outsource Accelerator top-N pages — org + location + phone per entry.
+- findacertifiedcoach.com specialty pages — 24+ entries per page with person + email + phone + website (richest full-contact yield).
+- Email-harvest queries (list contact emails "info@") return pages whose content contains real emails — regex-extract and attach by matching domain; never pattern-guess addresses.
+- Prune non-contactable bulk leads rather than padding to a number: coverage percentage beats raw count.

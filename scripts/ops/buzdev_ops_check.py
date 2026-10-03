@@ -3,6 +3,15 @@
 Called by buzdev_poll.sh each cycle; marks events notified after printing."""
 import json, os, urllib.request
 
+# --- Script integrity check (added after Oct 3 outage): the poll cron is
+# sandboxed to /opt/data/scripts — a symlink out of that dir makes the cron
+# fail silently ("Blocked: script path resolves outside the scripts dir"),
+# which killed all polling on Oct 3. Alert if any cron script is a symlink.
+for f in ('buzdev_poll.sh', 'buzdev_heartbeat.sh', 'buzdev_ops_check.py'):
+    p = os.path.join('/opt/data/scripts', f)
+    if os.path.islink(p):
+        print(f"OPS_ALERT|job=infra|event=cron_script_symlink|attempt=0|at=now|{f} is a symlink — cron will be BLOCKED; copy the real file from buzdev-plugin/scripts/ops/")
+
 env = {}
 for line in open('/opt/data/.buzdev/supabase.env'):
     line = line.strip()
