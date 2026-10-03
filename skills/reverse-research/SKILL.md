@@ -1,6 +1,6 @@
 ---
 name: reverse-research
-description: Use when the BuzDev agent needs free keyless social/ads/creator research before spending paid credits. Wraps the `reverse` CLI (github.com/ifccod/social-media-research-cli, MIT) — 26 platforms, 284 commands: LinkedIn companies/people/jobs, Meta/Microsoft/Pinterest/Snapchat ad libraries, TikTok Creative Center/Top Ads, Reddit/YouTube/Twitter/Instagram public search. Try this FIRST; fall back to buzdev-data paid tools on block/rate-limit.
+description: Use when the BuzDev agent needs free keyless ads/creator research before spending paid credits. Wraps the `reverse` CLI (github.com/ifccod/social-media-research-cli, MIT). PRODUCTION WHITELIST: microsoft_ads + youtube ONLY — the commands live-verified to survive a datacenter-IP host. All other platforms (facebook_ads, reddit, linkedin, twitter, instagram, threads) are DROPPED by the managed-sources policy: they are IP-blocked or gray-zone anonymous scraping. Try these two FIRST; on failure skip silently, never as "no results".
 version: 1.0.0
 category: business
 ---
@@ -30,35 +30,19 @@ Always invoke as:
 `--output` writes JSON to a file (avoids huge stdout); read the file afterwards.
 Use a normal shell timeout (60s) per call; these are subprocess calls, not daemons.
 
-## Platforms that matter for BuzDev (use ONLY these unless the job clearly needs others)
+## Production platform whitelist (user-set managed-sources policy)
 
 | Platform | Key commands | BuzDev use |
 |---|---|---|
-| `linkedin` | `company`, `company-people`, `company-affiliates`, `company-jobs`, `company-posts`, `person`, `post`, `job-suggest` | Decision-maker enrichment — FIRST choice before paid linkedin_* tools |
-| `facebook_ads` | `search-ads`, `page-ads`, `ad-details`, `search-suggest` | Warm B2B leads: businesses already spending on Meta ads |
-| `microsoft_ads` | `search-advertisers`, `search-ads`, `get-ad` | Same for Bing ads |
-| `pinterest_ads` | `search-ads`, `get-ad`, `search-pins` | B2C brands with ad spend |
-| `snapchat_ads` | `search-ads`, `search-sponsored-content` | B2C brands with ad spend |
-| `tiktok` | `search-users`, `search-general`, `trending-searchwords`, `creative-trending-hashtags`, `creative-top-ads`, `ads-keyword-ideas`, `one-creator-search` | B2C feeder research, creator/influencer leads, creative intel |
-| `reddit` | `search`, `subreddit`, `user`, `user-posts` | Community/opinion research |
-| `youtube` | `search`, `comments`, `channel-videos`, `search-suggest` | Content/competitor research |
-| `twitter` | `search-posts`, `user`, `user-tweets`, `trending` | Local SME discovery |
-| `instagram` | `profile`, `posts`, `post` | Local SME enrichment |
+| `microsoft_ads` | `search-advertisers`, `search-ads`, `get-ad` | Warm B2B leads: businesses spending on Bing ads (official anonymous Ad Library API — survives datacenter IPs) |
+| `youtube` | `search`, `comments`, `channel-videos`, `search-suggest` | Channel/community discovery (official endpoints) |
 
-Ignore the China-ecosystem platforms (douyin, zhihu, weibo, wechat*, bilibili,
-xiaohongshu, kuaishou, toutiao, xigua, lemon8, pipixia, netease_music) — not
-relevant to BuzDev's markets unless the user's job explicitly targets them.
+DROPPED (live-verified IP-blocked from the hosted agent's datacenter IP, or gray-zone anonymous scraping): `facebook_ads` (rate_limited), `reddit` (403), `linkedin` (HTTP 999), `twitter`, `instagram`, `threads`, and the entire China ecosystem. Do not re-add them — the block is the steady state, not an outage. Their data comes from managed sources instead: Tavily include_domains, web-social-search MCP, and buzdev-data SocialCrawl tools.
 
 ## When to use — the free-first ladder
 
-1. **Enrichment (LinkedIn)**: for every org missing a decision-maker, try
-   `reverse linkedin company-people --company <name>` BEFORE the paid
-   `linkedin_company_detail` (5 cr) / `linkedin_company_search` (10 cr) tools.
-   If reverse returns data → record it, save credits.
-2. **Ads intelligence (new capability)**: for B2B jobs, run
-   `reverse facebook_ads search-ads "<client niche keywords>"` and record
-   advertisers as HIGH-fit leads (they have marketing budget). Note ad presence
-   in the lead's `notes` field.
+1. **Advertiser intelligence**: `reverse microsoft_ads search-ads "<niche keywords>"` — record advertisers as warm leads (marketing budget), note "active advertiser", +1 fit.
+2. **Channel/community discovery**: `reverse youtube search "<niche>"` for channels and communities; on any {"ok":false} skip reverse for the rest of the job.
 3. **Social research**: prefer Tavily include_domains first (already in the
    main prompt), use `reverse` when you need comments, user post history, or
    structured profile data.
