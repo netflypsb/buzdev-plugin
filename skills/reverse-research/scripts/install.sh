@@ -37,6 +37,6 @@ fi
 
 # Smoke test
 "$VENV/bin/reverse" list --json > "$DEST/catalog.json"
-PLAT=$(python3 -c "import json;print(len(json.load(open('$DEST/catalog.json')).get('platforms',[])))" 2>/dev/null || echo '?')
+PLAT=$(python3 -c "import json;print(len(json.load(open('$DEST/catalog.json'))))" 2>/dev/null || echo '?')
 echo "OK: reverse installed. Platforms in catalog: $PLAT"
 echo "Entry point: $VENV/bin/reverse"
