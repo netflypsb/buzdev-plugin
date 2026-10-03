@@ -1,6 +1,6 @@
 ---
 name: buzdev-data
-description: Use when the BuzDev agent needs commercial-grade web/social/lead data. 11 tools on buzdev-data-mcp backed by KeyAPI (Google Places/SERP), SocialCrawl (LinkedIn + 67 social platforms + web search), and Bright Data (SERP + Web Unlocker, needs zones). Per-job spend caps enforced worker-side.
+description: Use when the BuzDev agent needs commercial-grade web/social/lead data. 11 tools on buzdev-data-mcp backed by KeyAPI (Google Places), SocialCrawl (LinkedIn + 67 social platforms + web search), and SerpApi (Google SERP, primary for serp_search — 1 unit/call, cap 10/job). Bright Data removed 2026-10-03. Per-job spend caps enforced worker-side.
 version: 1.0.0
 category: business
 ---
