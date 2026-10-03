@@ -49,6 +49,11 @@ After claiming (POST poll-pending → claimed:true sets last_heartbeat), send a 
 ## Quality harness (post-completion, every production job)
 After the webhook, read back the job's computed lead count + contact coverage (leads table). If leads < 30 OR coverage < 60%: perform ONE free automatic rerun with a wider/different strategy before treating the job as done; record `rerun_performed: true` in quality_gate. Report in the completion summary: sources_used, sources_unavailable, lead_count, computed coverage.
 
+## Pitfalls (learned Oct 3)
+- The poll cron's monitor script must be a REAL FILE in /opt/data/scripts — symlinks into the plugin get BLOCKED by the cron sandbox ("script path resolves outside the scripts directory") and every tick fails silently, killing pickup. buzdev_ops_check.py now alerts on symlinks; keep real copies in sync with plugin/scripts/ops/.
+- Webhook: send `output` as an object or string — the server (commit ecaf538) stringifies objects and accepts business_intelligence as {"sections":[...]} or a bare array. If a job shows completed with 0 leads (ingestion failed after status flip), re-POST the webhook with `status:"reingest"` to re-ingest.
+- Webhook must stay idempotent-normal for completed jobs; never re-POST completed jobs without the reingest flag (would duplicate leads).
+
 ## Rules
 - Claim before processing (atomic; prevents double work)
 - Send heartbeats every ~60s during processing (see above)
